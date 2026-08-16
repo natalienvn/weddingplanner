@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wedding To-Do</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #FAF6EE;
+    --card: #FFFEFB;
+    --ink: #2B2A28;
+    --ink-soft: #6B6559;
+    --ink-faint: #A79E8E;
+    --line: #E3D9C6;
+    --gold: #A98B4F;
+    --shadow: rgba(43,42,40,0.09);
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(43,42,40,0.045) 1px, transparent 0);
+    background-size: 18px 18px;
+  }
+
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 20px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    margin-bottom: 36px;
+  }
+
+  h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+
+  h1 em{
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .subtitle-input{
+    display:block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--ink-soft);
+    padding: 0 0 20px;
+    outline: none;
+  }
+  .subtitle-input::placeholder{ color: var(--ink-faint); }
+
+  .stats-row{
+    display:flex;
+    align-items:baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .stats-label{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .stats-pct{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--gold);
+  }
+
+  /* ---------- Thread progress bar ---------- */
+  .thread{
+    position: relative;
+    height: 8px;
+    border-radius: 5px;
+    background: repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 9px);
+    overflow: visible;
+  }
+  .thread-fill{
+    position: absolute;
+    top:0; left:0; bottom:0;
+    width: 0%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--accent-a, #B8665A), var(--accent-b, #A98B4F));
+    transition: width .6s ease;
+  }
+  .thread-fill::after{
+    content:"";
+    position:absolute; right:-4px; top:50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent-b, #A98B4F);
+    box-shadow: 0 0 0 3px var(--paper);
+  }
+
+  /* ---------- Category cards ---------- */
+  .categories{
+    display:flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .cat-card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 18px 8px;
+    box-shadow: 0 1px 2px var(--shadow);
+    position: relative;
+    border-left: 3px solid var(--accent, #B8665A);
+  }
+
+  .cat-header{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .cat-name{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .cat-count{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .icon-btn{
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 16px;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color .15s ease, background .15s ease;
+  }
+  .icon-btn:hover{ color: var(--ink); background: rgba(43,42,40,0.06); }
+  .icon-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .chev{
+    transition: transform .2s ease;
+    display:inline-block;
+  }
+  .chev.is-collapsed{ transform: rotate(-90deg); }
+
+  .cat-thread{
+    margin: 12px 0 14px;
+    height: 5px;
+  }
+
+  .cat-body.is-collapsed{ display:none; }
+
+  /* ---------- Tasks ---------- */
+  .task-row{
+    display:flex;
+    align-items:flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .check{
+    flex: 0 0 auto;
+    width: 24px; height: 24px;
+    margin-top: 1px;
+    border-radius: 50%;
+    border: 2px solid var(--accent, #B8665A);
+    background: var(--card);
+    cursor: pointer;
+    position: relative;
+    transition: background .2s ease, transform .12s ease;
+  }
+  .check:active{ transform: scale(0.92); }
+  .check.is-done{ background: var(--accent, #B8665A); }
+  .check.is-done::after{
+    content:"✓";
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:600;
+  }
+
+  .task-main{ flex:1; min-width:0; }
+
+  .task-text-btn{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    font-weight: 500;
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  .task-text-btn.is-done{
+    color: var(--ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-faint);
+  }
+
+  .task-note-preview{
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    margin-top: 2px;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-actions{
+    display:flex;
+    align-items:center;
+    gap: 2px;
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
+
+  .task-edit-input{
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--gold);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    font-weight: 500;
+    color: var(--ink);
+    padding: 2px 0;
+    outline: none;
+  }
+
+  .icon-btn.is-confirm{ color: var(--sage-icon, #6E8B5C); }
+  .icon-btn.is-confirm:hover{ color: #557048; background: rgba(94,139,74,0.12); }
+
+  .notes-wrap{
+    padding: 0 0 12px 36px;
+    animation: reveal .18s ease;
+  }
+  @keyframes reveal{
+    from{ opacity:0; transform: translateY(-4px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  .notes{
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    border: 1px solid var(--line);
+    background: #FFFDF9;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .notes::placeholder{ color: var(--ink-faint); }
+
+  /* ---------- Add row ---------- */
+  .add-row{
+    display:flex;
+    gap: 8px;
+    padding: 10px 0 12px;
+    border-top: 1px solid var(--line);
+  }
+  .add-input{
+    flex:1;
+    min-width:0;
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    color: var(--ink);
+    padding: 6px 2px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .add-input::placeholder{ color: var(--ink-faint); }
+  .add-input:focus{ border-bottom-color: var(--gold); outline:none; }
+
+  .add-btn{
+    flex: 0 0 auto;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .add-btn:hover{ background: var(--gold); }
+
+  .add-cat-row{
+    margin-top: 6px;
+  }
+  .add-cat-btn{
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1.5px dashed var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 14.5px;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .add-cat-btn:hover{ border-color: var(--gold); color: var(--ink); }
+
+  .new-cat-form{
+    display:flex;
+    gap: 8px;
+    padding: 4px 2px;
+  }
+  .new-cat-input{
+    flex:1;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    background: var(--card);
+  }
+  .new-cat-input:focus{ outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  .empty-state{
+    text-align:center;
+    color: var(--ink-faint);
+    font-style: italic;
+    font-family: var(--font-display);
+    font-size: 18px;
+    padding: 30px 10px;
+  }
+
+  .save-note{
+    text-align:center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 28px;
+    letter-spacing: 0.03em;
+  }
+  .save-note.is-error{
+    color: #B8665A;
+    font-weight: 600;
+  }
+
+  @media (max-width: 480px){
+    h1{ font-size: 36px; }
+    .wrap{ padding: 32px 14px 80px; }
+    .cat-card{ padding: 16px 14px 6px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'wedding-todo-data';
+  var ACCENTS = [
+    ['#B8665A', '#A98B4F'],
+    ['#7C8B6F', '#A98B4F'],
+    ['#6E7F91', '#A98B4F'],
+    ['#9C6B98', '#B8665A'],
+    ['#A98B4F', '#7C8B6F']
+  ];
+
+  var state = null;
+  var root = document.getElementById('app');
+  var saveTimer = null;
+  var addingCategory = false;
+  var saveWarning = null;
+
+  function uid(){
+    return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
+  }
+
+  function escapeHtml(str){
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function makeTask(text){
+    return { id: uid(), text: text, done: false, notes: '', open: false, editing: false };
+  }
+
+  function defaultData(){
+    return {
+      subtitle: '',
+      categories: [
+        { id: uid(), name: 'Venue & Location', collapsed:false, tasks: [
+          makeTask('Tour venues'),
+          makeTask('Book ceremony venue'),
+          makeTask('Book reception venue')
+        ]},
+        { id: uid(), name: 'Catering & Cake', collapsed:false, tasks: [
+          makeTask('Schedule tastings'),
+          makeTask('Book caterer'),
+          makeTask('Order the cake')
+        ]},
+        { id: uid(), name: 'Attire & Beauty', collapsed:false, tasks: [
+          makeTask('Order dress or suit'),
+          makeTask('Schedule fittings'),
+          makeTask('Book hair & makeup trial')
+        ]},
+        { id: uid(), name: 'Photography & Video', collapsed:false, tasks: [
+          makeTask('Book photographer'),
+          makeTask('Book videographer'),
+          makeTask('Create a shot list')
+        ]},
+        { id: uid(), name: 'Flowers & Decor', collapsed:false, tasks: [
+          makeTask('Choose a florist'),
+          makeTask('Order bouquets & centerpieces'),
+          makeTask('Plan ceremony decor')
+        ]},
+        { id: uid(), name: 'Music & Entertainment', collapsed:false, tasks: [
+          makeTask('Book band or DJ'),
+          makeTask('Make the ceremony playlist'),
+          makeTask('Pick the first dance song')
+        ]},
+        { id: uid(), name: 'Invitations & Stationery', collapsed:false, tasks: [
+          makeTask('Design save-the-dates'),
+          makeTask('Order invitations'),
+          makeTask('Track RSVPs')
+        ]},
+        { id: uid(), name: 'Legal & Paperwork', collapsed:false, tasks: [
+          makeTask('Apply for marriage license'),
+          makeTask('Confirm officiant'),
+          makeTask('Look into name change')
+        ]},
+        { id: uid(), name: 'Guests & Travel', collapsed:false, tasks: [
+          makeTask('Build the guest list'),
+          makeTask('Block hotel rooms'),
+          makeTask('Arrange transportation')
+        ]}
+      ]
+    };
+  }
+
+  function hasClaudeStorage(){
+    return !!(window.storage && typeof window.storage.get === 'function' && typeof window.storage.set === 'function');
+  }
+
+  function showSaveWarning(msg){
+    saveWarning = msg;
+    var el = document.getElementById('save-status');
+    if(el){ el.textContent = msg; el.classList.add('is-error'); }
+  }
+
+  function clearSaveWarning(){
+    if(!saveWarning) return;
+    saveWarning = null;
+    var el = document.getElementById('save-status');
+    if(el){ el.textContent = 'changes save automatically'; el.classList.remove('is-error'); }
+  }
+
+  function scheduleSave(delay){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveData, delay == null ? 500 : delay);
+  }
+
+  function saveData(){
+    if(!state) return;
+    var json = JSON.stringify(state);
+    if(hasClaudeStorage()){
+      window.storage.set(STORAGE_KEY, json).then(function(){
+        clearSaveWarning();
+      }).catch(function(e){
+        console.error('Save failed', e);
+        showSaveWarning("Changes couldn't be saved just now — trying again shortly.");
+      });
+    } else {
+      try{
+        localStorage.setItem(STORAGE_KEY, json);
+        clearSaveWarning();
+      }catch(e){
+        console.error('Save failed', e);
+        showSaveWarning("This browser is blocking local storage, so changes won't be saved.");
+      }
+    }
+  }
+
+  function applyLoaded(raw){
+    if(raw){
+      try{ state = JSON.parse(raw); }
+      catch(e){ state = defaultData(); }
+    } else {
+      state = defaultData();
+    }
+    render();
+    if(!raw){ scheduleSave(0); }
+  }
+
+  function loadData(){
+    if(hasClaudeStorage()){
+      window.storage.get(STORAGE_KEY).then(function(res){
+        applyLoaded(res && res.value);
+      }).catch(function(){
+        applyLoaded(null);
+      });
+    } else {
+      try{
+        applyLoaded(localStorage.getItem(STORAGE_KEY));
+      }catch(e){
+        saveWarning = "This browser is blocking local storage, so changes won't be saved between visits.";
+        applyLoaded(null);
+      }
+    }
+  }
+
+  window.addEventListener('beforeunload', function(){
+    if(saveTimer){
+      clearTimeout(saveTimer);
+      saveData();
+    }
+  });
+
+  function findCategory(catId){
+    for(var i=0;i<state.categories.length;i++){
+      if(state.categories[i].id === catId) return state.categories[i];
+    }
+    return null;
+  }
+
+  function findTask(cat, taskId){
+    for(var i=0;i<cat.tasks.length;i++){
+      if(cat.tasks[i].id === taskId) return cat.tasks[i];
+    }
+    return null;
+  }
+
+  function stats(){
+    var total = 0, done = 0;
+    state.categories.forEach(function(c){
+      c.tasks.forEach(function(t){ total++; if(t.done) done++; });
+    });
+    return { total: total, done: done, pct: total ? Math.round(done/total*100) : 0 };
+  }
+
+  function catStats(cat){
+    var total = cat.tasks.length, done = 0;
+    cat.tasks.forEach(function(t){ if(t.done) done++; });
+    return { total: total, done: done, pct: total ? Math.round(done/total*100) : 0 };
+  }
+
+  function taskRowHTML(cat, task, accent){
+    if(task.editing){
+      return (
+        '<div class="task-row">' +
+          '<button class="check' + (task.done ? ' is-done' : '') + '" style="border-color:' + accent[0] + ';background:' + (task.done ? accent[0] : '') + '" data-action="toggle-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-pressed="' + task.done + '" aria-label="Mark done"></button>' +
+          '<div class="task-main">' +
+            '<input class="task-edit-input" type="text" data-cat="' + cat.id + '" data-task="' + task.id + '" data-role="task-edit-input" value="' + escapeHtml(task.text) + '">' +
+          '</div>' +
+          '<div class="task-actions">' +
+            '<button class="icon-btn is-confirm" data-action="save-edit-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-label="Save task">✓</button>' +
+            '<button class="icon-btn" data-action="cancel-edit-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-label="Cancel edit">×</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    var noteHTML = '';
+    if(task.open){
+      noteHTML = '<div class="notes-wrap">' +
+        '<textarea class="notes" data-cat="' + cat.id + '" data-task="' + task.id + '" placeholder="Add a note — vendor, price, deadline…">' +
+        escapeHtml(task.notes) + '</textarea></div>';
+    }
+    var preview = (!task.open && task.notes) ?
+      '<div class="task-note-preview">' + escapeHtml(task.notes) + '</div>' : '';
+
+    return (
+      '<div class="task-row">' +
+        '<button class="check' + (task.done ? ' is-done' : '') + '" style="border-color:' + accent[0] + ';background:' + (task.done ? accent[0] : '') + '" data-action="toggle-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-pressed="' + task.done + '" aria-label="Mark done"></button>' +
+        '<div class="task-main">' +
+          '<button class="task-text-btn' + (task.done ? ' is-done' : '') + '" data-action="toggle-notes" data-cat="' + cat.id + '" data-task="' + task.id + '">' + escapeHtml(task.text) + '</button>' +
+          preview +
+        '</div>' +
+        '<div class="task-actions">' +
+          '<button class="icon-btn" data-action="start-edit-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-label="Edit task">✎</button>' +
+          '<button class="icon-btn chev' + (task.open ? '' : ' is-collapsed') + '" data-action="toggle-notes" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-label="Toggle notes">⌄</button>' +
+          '<button class="icon-btn" data-action="delete-task" data-cat="' + cat.id + '" data-task="' + task.id + '" aria-label="Delete task">×</button>' +
+        '</div>' +
+      '</div>' + noteHTML
+    );
+  }
+
+  function categoryHTML(cat, idx){
+    var accent = ACCENTS[idx % ACCENTS.length];
+    var cs = catStats(cat);
+    var tasksHTML = cat.tasks.map(function(t){ return taskRowHTML(cat, t, accent); }).join('');
+
+    return (
+      '<div class="cat-card" style="--accent:' + accent[0] + '">' +
+        '<div class="cat-header" data-action="toggle-collapse" data-cat="' + cat.id + '">' +
+          '<span class="icon-btn chev' + (cat.collapsed ? ' is-collapsed' : '') + '" aria-hidden="true">⌄</span>' +
+          '<div class="cat-name">' + escapeHtml(cat.name) + '</div>' +
+          '<div class="cat-count">' + cs.done + ' / ' + cs.total + '</div>' +
+          '<button class="icon-btn" data-action="delete-category" data-cat="' + cat.id + '" aria-label="Delete category">×</button>' +
+        '</div>' +
+        '<div class="cat-body' + (cat.collapsed ? ' is-collapsed' : '') + '">' +
+          '<div class="thread cat-thread" style="--accent-a:' + accent[0] + ';--accent-b:' + accent[1] + '"><div class="thread-fill" style="width:' + cs.pct + '%"></div></div>' +
+          (cat.tasks.length ? tasksHTML : '<div class="task-row" style="border-top:none;color:var(--ink-faint);font-style:italic;padding-top:2px;">No tasks yet</div>') +
+          '<div class="add-row">' +
+            '<input class="add-input" type="text" placeholder="Add a task…" data-cat="' + cat.id + '" data-role="add-task-input">' +
+            '<button class="add-btn" data-action="add-task" data-cat="' + cat.id + '" aria-label="Add task">+</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function render(){
+    var s = stats();
+    var catsHTML = state.categories.length ?
+      state.categories.map(categoryHTML).join('') :
+      '<div class="empty-state">No categories yet. Add your first one below.</div>';
+
+    var addCatHTML = addingCategory ?
+      '<div class="new-cat-form">' +
+        '<input class="new-cat-input" type="text" id="new-cat-input" placeholder="Category name, e.g. Rentals" autofocus>' +
+        '<button class="add-btn" data-action="confirm-add-category" aria-label="Add category">+</button>' +
+      '</div>' :
+      '<button class="add-cat-btn" data-action="start-add-category">+ Add a category</button>';
+
+    root.innerHTML =
+      '<header>' +
+        '<h1>The <em>To-Do</em> List</h1>' +
+        '<input class="subtitle-input" id="subtitle-input" type="text" placeholder="Add your names & date — optional" value="' + escapeHtml(state.subtitle) + '">' +
+        '<div class="stats-row">' +
+          '<span class="stats-label">' + s.done + ' of ' + s.total + ' things done</span>' +
+          '<span class="stats-pct">' + s.pct + '%</span>' +
+        '</div>' +
+        '<div class="thread"><div class="thread-fill" style="width:' + s.pct + '%"></div></div>' +
+      '</header>' +
+      '<div class="categories">' + catsHTML + '</div>' +
+      '<div class="add-cat-row">' + addCatHTML + '</div>' +
+      '<div class="save-note' + (saveWarning ? ' is-error' : '') + '" id="save-status">' + (saveWarning || 'changes save automatically') + '</div>';
+
+    if(addingCategory){
+      var el = document.getElementById('new-cat-input');
+      if(el) el.focus();
+    }
+    var editInput = root.querySelector('.task-edit-input[data-role="task-edit-input"]');
+    if(editInput){ editInput.focus(); editInput.select(); }
+  }
+
+  function addTask(catId){
+    var input = root.querySelector('.add-input[data-cat="' + catId + '"]');
+    if(!input) return;
+    var val = input.value.trim();
+    if(!val) return;
+    var cat = findCategory(catId);
+    if(!cat) return;
+    cat.tasks.push(makeTask(val));
+    render();
+    scheduleSave(0);
+    var newInput = root.querySelector('.add-input[data-cat="' + catId + '"]');
+    if(newInput) newInput.focus();
+  }
+
+  function startEditTask(catId, taskId){
+    var cat = findCategory(catId), task = cat && findTask(cat, taskId);
+    if(!task) return;
+    task.editing = true;
+    render();
+  }
+
+  function saveEditTask(catId, taskId){
+    var cat = findCategory(catId), task = cat && findTask(cat, taskId);
+    if(!task) return;
+    var input = root.querySelector('.task-edit-input[data-cat="' + catId + '"][data-task="' + taskId + '"]');
+    var val = input ? input.value.trim() : task.text;
+    if(val){ task.text = val; }
+    task.editing = false;
+    render();
+    scheduleSave(0);
+  }
+
+  function cancelEditTask(catId, taskId){
+    var cat = findCategory(catId), task = cat && findTask(cat, taskId);
+    if(!task) return;
+    task.editing = false;
+    render();
+  }
+
+  function confirmAddCategory(){
+    var input = document.getElementById('new-cat-input');
+    if(!input) return;
+    var val = input.value.trim();
+    if(!val){ addingCategory = false; render(); return; }
+    state.categories.push({ id: uid(), name: val, collapsed:false, tasks: [] });
+    addingCategory = false;
+    render();
+    scheduleSave(0);
+  }
+
+  root.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var catId = btn.getAttribute('data-cat');
+    var taskId = btn.getAttribute('data-task');
+
+    if(action === 'toggle-task'){
+      var cat = findCategory(catId), task = cat && findTask(cat, taskId);
+      if(task){ task.done = !task.done; render(); scheduleSave(0); }
+    } else if(action === 'toggle-notes'){
+      var cat2 = findCategory(catId), task2 = cat2 && findTask(cat2, taskId);
+      if(task2){ task2.open = !task2.open; render(); scheduleSave(0); }
+    } else if(action === 'delete-task'){
+      var cat3 = findCategory(catId);
+      if(cat3){
+        cat3.tasks = cat3.tasks.filter(function(t){ return t.id !== taskId; });
+        render(); scheduleSave(0);
+      }
+    } else if(action === 'delete-category'){
+      var cat4 = findCategory(catId);
+      var label = cat4 ? cat4.name : 'this category';
+      if(window.confirm('Delete "' + label + '" and all its tasks?')){
+        state.categories = state.categories.filter(function(c){ return c.id !== catId; });
+        render(); scheduleSave(0);
+      }
+    } else if(action === 'toggle-collapse'){
+      var cat5 = findCategory(catId);
+      if(cat5){ cat5.collapsed = !cat5.collapsed; render(); scheduleSave(0); }
+    } else if(action === 'add-task'){
+      addTask(catId);
+    } else if(action === 'start-edit-task'){
+      startEditTask(catId, taskId);
+    } else if(action === 'save-edit-task'){
+      saveEditTask(catId, taskId);
+    } else if(action === 'cancel-edit-task'){
+      cancelEditTask(catId, taskId);
+    } else if(action === 'start-add-category'){
+      addingCategory = true; render();
+    } else if(action === 'confirm-add-category'){
+      confirmAddCategory();
+    }
+  });
+
+  root.addEventListener('keydown', function(e){
+    if(e.target.matches('.task-edit-input[data-role="task-edit-input"]')){
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        saveEditTask(e.target.getAttribute('data-cat'), e.target.getAttribute('data-task'));
+      } else if(e.key === 'Escape'){
+        e.preventDefault();
+        cancelEditTask(e.target.getAttribute('data-cat'), e.target.getAttribute('data-task'));
+      }
+      return;
+    }
+    if(e.key !== 'Enter') return;
+    if(e.target.matches('.add-input[data-role="add-task-input"]')){
+      e.preventDefault();
+      addTask(e.target.getAttribute('data-cat'));
+    } else if(e.target.id === 'new-cat-input'){
+      e.preventDefault();
+      confirmAddCategory();
+    }
+  });
+
+  root.addEventListener('input', function(e){
+    if(e.target.classList.contains('notes')){
+      var cat = findCategory(e.target.getAttribute('data-cat'));
+      var task = cat && findTask(cat, e.target.getAttribute('data-task'));
+      if(task){ task.notes = e.target.value; scheduleSave(600); }
+    } else if(e.target.id === 'subtitle-input'){
+      state.subtitle = e.target.value;
+      scheduleSave(600);
+    }
+  });
+
+  loadData();
+})();
+</script>
+</body>
+</html>
