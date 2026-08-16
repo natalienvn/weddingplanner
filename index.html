@@ -393,6 +393,29 @@
     font-weight: 600;
   }
 
+  .backup-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .link-btn{
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 2px;
+    padding: 2px;
+  }
+  .link-btn:hover{ color: var(--gold); text-decoration-color: var(--gold); }
+  .backup-sep{ color: var(--ink-faint); font-size: 11px; }
+
   @media (max-width: 480px){
     h1{ font-size: 36px; }
     .wrap{ padding: 32px 14px 80px; }
@@ -406,6 +429,7 @@
 </head>
 <body>
   <div class="wrap" id="app"></div>
+  <input type="file" id="import-file-input" accept="application/json,.json" style="display:none">
 
 <script>
 (function(){
@@ -685,6 +709,11 @@
           '<span class="stats-pct">' + s.pct + '%</span>' +
         '</div>' +
         '<div class="thread"><div class="thread-fill" style="width:' + s.pct + '%"></div></div>' +
+        '<div class="backup-row">' +
+          '<button class="link-btn" data-action="export-backup">Download backup</button>' +
+          '<span class="backup-sep">·</span>' +
+          '<button class="link-btn" data-action="trigger-import">Restore from file</button>' +
+        '</div>' +
       '</header>' +
       '<div class="categories">' + catsHTML + '</div>' +
       '<div class="add-cat-row">' + addCatHTML + '</div>' +
@@ -736,6 +765,81 @@
     task.editing = false;
     render();
   }
+
+  function exportBackup(){
+    try{
+      var json = JSON.stringify(state, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var date = new Date().toISOString().slice(0,10);
+      a.href = url;
+      a.download = 'wedding-todo-backup-' + date + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }catch(e){
+      console.error('Export failed', e);
+      window.alert("Couldn't create the backup file.");
+    }
+  }
+
+  function triggerImport(){
+    var input = document.getElementById('import-file-input');
+    if(input) input.click();
+  }
+
+  function normalizeImported(parsed){
+    if(!parsed || !Array.isArray(parsed.categories)) return null;
+    parsed.categories.forEach(function(c){
+      if(!c.id) c.id = uid();
+      if(typeof c.name !== 'string') c.name = 'Untitled';
+      if(typeof c.collapsed !== 'boolean') c.collapsed = false;
+      if(!Array.isArray(c.tasks)) c.tasks = [];
+      c.tasks.forEach(function(t){
+        if(!t.id) t.id = uid();
+        if(typeof t.text !== 'string') t.text = '';
+        if(typeof t.done !== 'boolean') t.done = false;
+        if(typeof t.notes !== 'string') t.notes = '';
+        t.open = false;
+        t.editing = false;
+      });
+    });
+    if(typeof parsed.subtitle !== 'string') parsed.subtitle = '';
+    return parsed;
+  }
+
+  function handleImportFile(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var parsed;
+      try{
+        parsed = JSON.parse(reader.result);
+      }catch(err){
+        window.alert("That file doesn't look like a valid backup — it isn't readable JSON.");
+        return;
+      }
+      var normalized = normalizeImported(parsed);
+      if(!normalized){
+        window.alert("That file doesn't look like a wedding to-do backup.");
+        return;
+      }
+      if(!window.confirm('Replace your current list with this backup? This will overwrite what you have now.')) return;
+      state = normalized;
+      render();
+      scheduleSave(0);
+    };
+    reader.onerror = function(){
+      window.alert("Couldn't read that file.");
+    };
+    reader.readAsText(file);
+  }
+
+  document.getElementById('import-file-input').addEventListener('change', handleImportFile);
 
   function confirmAddCategory(){
     var input = document.getElementById('new-cat-input');
@@ -789,6 +893,10 @@
       addingCategory = true; render();
     } else if(action === 'confirm-add-category'){
       confirmAddCategory();
+    } else if(action === 'export-backup'){
+      exportBackup();
+    } else if(action === 'trigger-import'){
+      triggerImport();
     }
   });
 
