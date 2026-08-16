@@ -485,6 +485,9 @@
   var saveTimer = null;
   var addingCategory = false;
   var saveWarning = null;
+  var storageMode = null; // 'claude' | 'shared' | 'local'
+  var pollTimer = null;
+  var SHARED_API = '/api/data';
 
   function uid(){
     return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
@@ -557,6 +560,22 @@
     return !!(window.storage && typeof window.storage.get === 'function' && typeof window.storage.set === 'function');
   }
 
+  function safeFetch(url, opts){
+    try{
+      if(typeof fetch !== 'function') return Promise.reject(new Error('fetch unavailable'));
+      return fetch(url, opts);
+    }catch(e){
+      return Promise.reject(e);
+    }
+  }
+
+  function saveNoteText(){
+    if(saveWarning) return saveWarning;
+    if(storageMode === 'shared') return 'shared live with anyone who has this link';
+    if(storageMode === 'local') return 'saved on this device only';
+    return 'changes save automatically';
+  }
+
   function showSaveWarning(msg){
     saveWarning = msg;
     var el = document.getElementById('save-status');
@@ -567,7 +586,7 @@
     if(!saveWarning) return;
     saveWarning = null;
     var el = document.getElementById('save-status');
-    if(el){ el.textContent = 'changes save automatically'; el.classList.remove('is-error'); }
+    if(el){ el.textContent = saveNoteText(); el.classList.remove('is-error'); }
   }
 
   function scheduleSave(delay){
@@ -578,50 +597,109 @@
   function saveData(){
     if(!state) return;
     var json = JSON.stringify(state);
-    if(hasClaudeStorage()){
+
+    if(storageMode === 'claude'){
       window.storage.set(STORAGE_KEY, json).then(function(){
         clearSaveWarning();
       }).catch(function(e){
         console.error('Save failed', e);
         showSaveWarning("Changes couldn't be saved just now — trying again shortly.");
       });
-    } else {
-      try{
-        localStorage.setItem(STORAGE_KEY, json);
+      return;
+    }
+
+    if(storageMode === 'shared'){
+      safeFetch(SHARED_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: json
+      }).then(function(res){
+        if(!res.ok) throw new Error('save failed: ' + res.status);
         clearSaveWarning();
-      }catch(e){
+      }).catch(function(e){
         console.error('Save failed', e);
-        showSaveWarning("This browser is blocking local storage, so changes won't be saved.");
-      }
+        showSaveWarning("Changes couldn't be saved just now — trying again shortly.");
+      });
+      return;
+    }
+
+    try{
+      localStorage.setItem(STORAGE_KEY, json);
+      clearSaveWarning();
+    }catch(e){
+      console.error('Save failed', e);
+      showSaveWarning("This browser is blocking local storage, so changes won't be saved.");
     }
   }
 
-  function applyLoaded(raw){
-    if(raw){
-      try{ state = JSON.parse(raw); }
-      catch(e){ state = defaultData(); }
-    } else {
-      state = defaultData();
-    }
+  function applyLoadedObject(obj){
+    state = normalizeImported(obj) || defaultData();
     render();
-    if(!raw){ scheduleSave(0); }
+    if(!obj){ scheduleSave(0); }
+  }
+
+  function applyLoaded(raw){
+    var obj = null;
+    if(raw){
+      try{ obj = JSON.parse(raw); }catch(e){ obj = null; }
+    }
+    applyLoadedObject(obj);
+  }
+
+  function isUserTyping(){
+    var el = document.activeElement;
+    if(!el || !root.contains(el)) return false;
+    return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+  }
+
+  function pollSharedData(){
+    if(storageMode !== 'shared' || isUserTyping()) return;
+    safeFetch(SHARED_API, { cache: 'no-store' }).then(function(res){
+      return res.ok ? res.json() : null;
+    }).then(function(data){
+      if(!data) return;
+      if(JSON.stringify(data) === JSON.stringify(state)) return;
+      state = normalizeImported(data) || state;
+      render();
+    }).catch(function(){ /* silent — next poll retries */ });
+  }
+
+  function startPolling(){
+    if(pollTimer) return;
+    pollTimer = setInterval(pollSharedData, 8000);
+    document.addEventListener('visibilitychange', function(){
+      if(!document.hidden) pollSharedData();
+    });
+    window.addEventListener('focus', pollSharedData);
   }
 
   function loadData(){
     if(hasClaudeStorage()){
+      storageMode = 'claude';
       window.storage.get(STORAGE_KEY).then(function(res){
         applyLoaded(res && res.value);
       }).catch(function(){
         applyLoaded(null);
       });
-    } else {
+      return;
+    }
+
+    safeFetch(SHARED_API, { cache: 'no-store' }).then(function(res){
+      if(!res.ok) throw new Error('shared api unavailable: ' + res.status);
+      return res.json();
+    }).then(function(data){
+      storageMode = 'shared';
+      applyLoadedObject(data);
+      startPolling();
+    }).catch(function(){
+      storageMode = 'local';
       try{
         applyLoaded(localStorage.getItem(STORAGE_KEY));
       }catch(e){
         saveWarning = "This browser is blocking local storage, so changes won't be saved between visits.";
         applyLoaded(null);
       }
-    }
+    });
   }
 
   window.addEventListener('beforeunload', function(){
@@ -776,7 +854,7 @@
       '</header>' +
       '<div class="categories">' + catsHTML + '</div>' +
       '<div class="add-cat-row">' + addCatHTML + '</div>' +
-      '<div class="save-note' + (saveWarning ? ' is-error' : '') + '" id="save-status">' + (saveWarning || 'changes save automatically') + '</div>';
+      '<div class="save-note' + (saveWarning ? ' is-error' : '') + '" id="save-status">' + saveNoteText() + '</div>';
 
     if(addingCategory){
       var el = document.getElementById('new-cat-input');
